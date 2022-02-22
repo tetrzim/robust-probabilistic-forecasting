@@ -1,0 +1,2 @@
+pytorch_lightning==1.4.9
+gluonts
