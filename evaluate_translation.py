@@ -20,11 +20,11 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str, default=None, help='dataset name')
     parser.add_argument('--context_length', type=int, required=True, help='model\'s context length')
     parser.add_argument('--prediction_length', type=int, required=True, help='model\'s prediction length')
-    parser.add_argument('--model_type', type=str, required=True, help='forecaster type in the form of baseline or RT_sigma')
+    parser.add_argument('--model_type', type=str, required=True, help='forecaster type, e.g., vanilla or RT')
     parser.add_argument('--model_path', type=str, required=True, help='path to model checkpoint')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='cpu or cuda w/ number specified')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for adversarial attack')
-    parser.add_argument('--trial_number', type=int, required=True, help='repetitive experiment index for keeping data from multiple trials')
+    parser.add_argument('--trial_number', type=int, default=None, help='repetitive experiment index for keeping data from multiple trials')
 
     args = parser.parse_args()
 
@@ -73,8 +73,7 @@ if __name__ == "__main__":
     perturbation_levels = [-0.9, -0.8, -0.5, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0, 2.0, 4.0, 9.0]
     sigmas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     num_parallel_samples = 100
-    num_noised_samples = 100
-
+    
     original_forecasts = {sigma: [] for sigma in [0.0] + sigmas}
     translated_forecasts = {pert: {sigma: [] for sigma in [0.0] + sigmas} for pert in perturbation_levels}
     
@@ -137,7 +136,6 @@ if __name__ == "__main__":
                 else:
                     translated_inputs.append(batch[key])
                     
-            # translated_outputs, _ = net.model(*translated_inputs, num_parallel_samples=num_parallel_samples,)
             translated_outputs, _ = net.model(*translated_inputs, num_parallel_samples=num_parallel_samples, noise_lag_index=1)
             translated_forecasts[pert][0.0].append(translated_outputs.detach().cpu().numpy())
 
@@ -145,7 +143,6 @@ if __name__ == "__main__":
             torch.cuda.empty_cache()
 
             for sigma in sigmas:
-                # outputs, _ = net.model(*translated_inputs, num_parallel_samples=num_parallel_samples, intermediate_noise=sigma)
                 outputs, _ = net.model(*translated_inputs, num_parallel_samples=num_parallel_samples, intermediate_noise=sigma, noise_lag_index=1)
                 translated_forecasts[pert][sigma].append(
                     outputs.detach().cpu().numpy()
@@ -166,9 +163,7 @@ if __name__ == "__main__":
     table = []
 
     for pert in perturbation_levels:
-
         row = []
-        
         for sigma in [0.0] + sigmas:
             
             denom = sum([np.sum(np.abs(np.average(original_forecasts[sigma][i][:, :, 1:], axis=1)))
@@ -179,21 +174,24 @@ if __name__ == "__main__":
                     np.abs(
                         np.average(original_forecasts[sigma][i][:, :, 1:], axis=1) - \
                         np.average(translated_forecasts[pert][sigma][i][:, :, :-1], axis=1)
-                        # np.median(original_forecasts[sigma][i][:, :, 1:], axis=1) - \
-                        # np.median(translated_forecasts[pert][sigma][i][:, :, :-1], axis=1)
                     )
                 )
                 for i in range(num_batches)
             ]) / denom)
-        
         table.append(np.array(row))
 
-    table = np.array(table)
-    np.set_printoptions(precision=3)
-    print(table)
+    if args.trial_number is not None:
+        filename = './translation_metrics/' + dataset_name + '_' + args.model_type + '_translation_test_' \
+                    + str(args.trial_number) + '.npy'
+    else:
+        filename = './translation_metrics/' + dataset_name + '_' + args.model_type + '_translation_test.npy'
 
     np.save(
-        file='./translation_metrics/' + dataset_name + '_' + str(prediction_length) + '_' + args.model_type + '_translation_test_' \
-                + str(args.trial_number) + '.npy',
-        arr=table
+        file=filename, arr=table
     )
+
+    # Output test code
+    # np.set_printoptions(precision=3)
+    # table = np.array(table)
+    # np.set_printoptions(precision=3)
+    # print(table)

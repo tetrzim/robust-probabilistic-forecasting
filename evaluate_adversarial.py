@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('--context_length', type=int, required=True, help='model\'s context length')
     parser.add_argument('--prediction_length', type=int, required=True, help='model\'s prediction length')
     parser.add_argument('--freq', type=str, default="1H", help='dataset\'s frequency value')
-    parser.add_argument('--model_type', type=str, required=True, help='forecaster type, e.g., baseline, vanilla, RT, etc.')
+    parser.add_argument('--model_type', type=str, required=True, help='forecaster type, e.g., vanilla, RT, etc.')
     parser.add_argument('--model_path', type=str, required=True, help='path to model checkpoint')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='cpu or cuda w/ number specified')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for adversarial attack')
@@ -157,16 +157,12 @@ if __name__ == "__main__":
 
     metrics = Metrics(mse=mse, mape=mape, nd=nd, ql=ql, sigmas=sigmas, tolerance=tolerance)
 
-    ### Deprecated ###
-    # if intermediate_noise is not None:
-    #     filename = filename[:-4] + "_intermediate_noise.pkl"
-
     with open("./metrics/" + filename, "wb") as outp:
         pickle.dump(metrics, outp, pickle.HIGHEST_PROTOCOL)
 
     # Output test code
-    np.set_printoptions(precision=3)
-    for criterion in ["MSE", "MAPE", "ND"]:
-        print(criterion)
-        print(metrics.to_table(criterion))
-        print("\n")
+    # np.set_printoptions(precision=3)
+    # for criterion in ["MSE", "MAPE", "ND"]:
+    #     print(criterion)
+    #     print(metrics.to_table(criterion))
+    #     print("\n")
